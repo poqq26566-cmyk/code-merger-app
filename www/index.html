@@ -1,1 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码合并工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --ink:#1c1b19;
+    --paper:#f6f3ec;
+    --rule:#d8d2c2;
+    --accent:#b5542a;
+    --accent-dim:#8f4321;
+    --mono-bg:#221f1a;
+    --ok:#3c6e47;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Courier New', ui-monospace, Menlo, monospace;
+    min-height:100vh;
+    padding:24px 18px 60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
 
+  header{
+    border-bottom:3px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--accent-dim);
+    margin-bottom:6px;
+  }
+  h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:30px;
+    margin:0 0 6px;
+    letter-spacing:-.01em;
+  }
+  .sub{
+    font-size:13px;
+    color:#5b564c;
+    line-height:1.5;
+  }
+  .badge{
+    display:inline-block;
+    margin-top:10px;
+    font-size:11px;
+    border:1px solid var(--ink);
+    padding:3px 8px;
+    border-radius:2px;
+    letter-spacing:.04em;
+  }
+
+  .panel{
+    background:#fff;
+    border:1px solid var(--rule);
+    border-radius:3px;
+    padding:18px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-family: Georgia, serif;
+    font-size:15px;
+    margin:0 0 10px;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .panel h2 .num{
+    color:var(--accent);
+    font-size:13px;
+  }
+
+  .drop{
+    border:2px dashed var(--rule);
+    border-radius:3px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .drop.drag{
+    border-color:var(--accent);
+    background:#fbf2ec;
+  }
+  .drop input{display:none;}
+  .drop-label{
+    font-size:13px;
+    color:#5b564c;
+  }
+  .drop-label strong{color:var(--ink);}
+  .filename{
+    margin-top:10px;
+    font-size:12px;
+    color:var(--ok);
+    word-break:break-all;
+  }
+
+  .opt-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    padding:6px 0;
+  }
+  .opt-row input[type=checkbox]{
+    width:15px;height:15px;
+    accent-color:var(--accent);
+  }
+  .opt-row label{flex:1;}
+  .ext-input{
+    width:100%;
+    font-family:inherit;
+    font-size:12px;
+    padding:8px;
+    border:1px solid var(--rule);
+    border-radius:2px;
+    background:#fbfaf6;
+    color:var(--ink);
+    margin-top:4px;
+  }
+  .hint{font-size:11px;color:#8a8474;margin-top:4px;}
+
+  button.run{
+    width:100%;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    padding:14px;
+    font-family:inherit;
+    font-size:14px;
+    letter-spacing:.04em;
+    border-radius:3px;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  button.run:disabled{
+    background:#b9b3a4;
+    cursor:not-allowed;
+  }
+  button.run:active:not(:disabled){background:var(--accent-dim);}
+
+  .status{
+    font-size:12px;
+    color:#5b564c;
+    margin-top:12px;
+    line-height:1.6;
+    white-space:pre-wrap;
+  }
+  .status .err{color:#a3372c;}
+  .status .ok{color:var(--ok);}
+
+  .result{
+    display:none;
+    background:var(--mono-bg);
+    color:#e9e4d8;
+    border-radius:3px;
+    padding:16px;
+    margin-top:14px;
+  }
+  .result.show{display:block;}
+  .result .stat{font-size:12px;margin-bottom:10px;color:#c9c2b1;}
+  .result .stat b{color:#fff;}
+  a.dl{
+    display:block;
+    text-align:center;
+    background:var(--accent);
+    color:#fff;
+    text-decoration:none;
+    padding:12px;
+    border-radius:2px;
+    font-size:13px;
+    letter-spacing:.03em;
+  }
+  a.dl:active{background:var(--accent-dim);}
+
+  footer{
+    text-align:center;
+    font-size:11px;
+    color:#9b9586;
+    margin-top:30px;
+    line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">本地处理 · 无需联网</div>
+    <h1>代码合并工具</h1>
+    <div class="sub">选一个 zip 压缩包,自动解压并把所有代码文件按路径合并成一份 txt。整个过程在手机本地完成,选完文件后断网也能用。</div>
+    <span class="badge">ZIP → TXT</span>
+  </header>
+
+  <div class="panel">
+    <h2><span class="num">01</span> 选择压缩包</h2>
+    <div class="drop" id="drop">
+      <input type="file" id="fileInput" accept=".zip">
+      <div class="drop-label"><strong>点击选择</strong>或拖入一个 .zip 文件</div>
+      <div class="filename" id="filename"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">02</span> 排除文件类型</h2>
+    <div class="opt-row">
+      <input type="checkbox" id="excDefault" checked>
+      <label for="excDefault">排除常见二进制文件(图片 / jar / class)</label>
+    </div>
+    <div class="opt-row">
+      <input type="checkbox" id="excGit" checked>
+      <label for="excGit">排除 .git 文件夹</label>
+    </div>
+    <div style="margin-top:8px;">
+      <div class="hint" style="margin-bottom:4px;">额外排除的扩展名(逗号分隔,可留空):</div>
+      <input type="text" class="ext-input" id="extraExt" placeholder="例如: zip, pdf, ttf">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">03</span> 生成</h2>
+    <button class="run" id="runBtn" disabled>选择文件后开始处理</button>
+    <div class="status" id="status"></div>
+    <div class="result" id="result">
+      <div class="stat" id="stat"></div>
+      <a class="dl" id="dlLink" download="merged_code.txt">下载 merged_code.txt</a>
+    </div>
+  </div>
+
+  <footer>
+    路径标记格式: ===== 文件路径 =====<br>
+    所有解压与合并均在浏览器内存中完成,不上传任何数据。
+  </footer>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const drop = document.getElementById('drop');
+const filenameEl = document.getElementById('filename');
+const runBtn = document.getElementById('runBtn');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+const statEl = document.getElementById('stat');
+const dlLink = document.getElementById('dlLink');
+
+const DEFAULT_BINARY_EXT = ['jar','class','png','jpg','jpeg','gif','ico','webp','bmp','zip','gz','tar','7z','exe','dll','so','dylib','ttf','otf','woff','woff2','mp3','mp4','mov','avi','pdf'];
+
+let selectedFile = null;
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) {
+    handleFile(e.dataTransfer.files[0]);
+  }
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.name.toLowerCase().endsWith('.zip')) {
+    filenameEl.textContent = '';
+    statusEl.innerHTML = '<span class="err">请选择一个 .zip 文件</span>';
+    runBtn.disabled = true;
+    selectedFile = null;
+    return;
+  }
+  selectedFile = file;
+  filenameEl.textContent = '已选择: ' + file.name + ' (' + (file.size/1024/1024).toFixed(2) + ' MB)';
+  statusEl.textContent = '';
+  runBtn.disabled = false;
+  runBtn.textContent = '开始处理';
+  resultEl.classList.remove('show');
+}
+
+runBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  runBtn.disabled = true;
+  runBtn.textContent = '处理中...';
+  resultEl.classList.remove('show');
+  statusEl.textContent = '正在读取压缩包...';
+
+  try {
+    const excDefault = document.getElementById('excDefault').checked;
+    const excGit = document.getElementById('excGit').checked;
+    const extraExtRaw = document.getElementById('extraExt').value;
+    const extraExt = extraExtRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+    let excludeExt = [];
+    if (excDefault) excludeExt = excludeExt.concat(DEFAULT_BINARY_EXT);
+    excludeExt = excludeExt.concat(extraExt);
+
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    statusEl.textContent = '正在解压...';
+    const zip = await JSZip.loadAsync(arrayBuffer);
+
+    const entries = [];
+    zip.forEach((relPath, entry) => {
+      if (entry.dir) return;
+      if (excGit && (relPath.includes('/.git/') || relPath.startsWith('.git/'))) return;
+      const ext = relPath.includes('.') ? relPath.split('.').pop().toLowerCase() : '';
+      if (excludeExt.includes(ext)) return;
+      entries.push({ path: relPath, entry });
+    });
+
+    entries.sort((a, b) => a.path.localeCompare(b.path));
+
+    statusEl.textContent = '正在合并 ' + entries.length + ' 个文件...';
+
+    let chunks = [];
+    let included = 0;
+    let skippedBinary = 0;
+
+    for (const item of entries) {
+      let content;
+      try {
+        content = await item.entry.async('string');
+      } catch (e) {
+        skippedBinary++;
+        continue;
+      }
+      chunks.push('===== ./' + item.path + ' =====\n');
+      chunks.push(content);
+      chunks.push('\n\n\n');
+      included++;
+    }
+
+    const finalText = chunks.join('');
+    const blob = new Blob([finalText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    dlLink.href = url;
+    const baseName = selectedFile.name.replace(/\.zip$/i, '');
+    dlLink.download = baseName + '_merged.txt';
+
+    statEl.innerHTML = '已收录 <b>' + included + '</b> 个文件'
+      + (skippedBinary ? ' · 跳过 <b>' + skippedBinary + '</b> 个无法解析为文本的文件' : '')
+      + '<br>合并后总大小: <b>' + (blob.size/1024).toFixed(1) + ' KB</b>';
+
+    resultEl.classList.add('show');
+    statusEl.innerHTML = '<span class="ok">处理完成</span>';
+    runBtn.textContent = '重新处理';
+    runBtn.disabled = false;
+
+  } catch (err) {
+    statusEl.innerHTML = '<span class="err">处理失败: ' + err.message + '</span>';
+    runBtn.textContent = '重试';
+    runBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

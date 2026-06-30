@@ -427,18 +427,31 @@ runBtn.addEventListener('click', async () => {
 
     const finalText = chunks.join('');
     const blob = new Blob([finalText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    dlLink.href = url;
     const baseName = selectedFile.name.replace(/\.zip$/i, '');
-    dlLink.download = baseName + '_merged.txt';
+    const outFileName = baseName + '_merged.txt';
 
     statEl.innerHTML = '已收录 <b>' + included + '</b> 个文件'
       + (skippedBinary ? ' · 跳过 <b>' + skippedBinary + '</b> 个二进制/无法解析的文件' : '')
       + '<br>合并后总大小: <b>' + (blob.size/1024).toFixed(1) + ' KB</b>';
 
     resultEl.classList.add('show');
-    statusEl.innerHTML = '<span class="ok">处理完成</span>';
+
+    if (window.cordova) {
+      window.__pendingBlob = blob;
+      window.__pendingName = outFileName;
+      dlLink.textContent = '保存到 Download 文件夹';
+      dlLink.removeAttribute('href');
+      dlLink.removeAttribute('download');
+      dlLink.dataset.pending = '1';
+      statusEl.innerHTML = '<span class="ok">处理完成,点击下方按钮保存文件</span>';
+    } else {
+      const url = URL.createObjectURL(blob);
+      dlLink.href = url;
+      dlLink.download = outFileName;
+      dlLink.textContent = '下载 ' + outFileName;
+      statusEl.innerHTML = '<span class="ok">处理完成</span>';
+    }
+
     runBtn.textContent = '重新处理';
     runBtn.disabled = false;
 
@@ -448,6 +461,75 @@ runBtn.addEventListener('click', async () => {
     runBtn.disabled = false;
   }
 });
+
+/* ============================================================
+   Cordova 环境下的真实文件保存逻辑
+   ============================================================ */
+function saveFileCordova(blob, filename) {
+  function writeTo(dirUrl) {
+    window.resolveLocalFileSystemURL(dirUrl, function(dirEntry) {
+      dirEntry.getFile(filename, { create: true, exclusive: false }, function(fileEntry) {
+        fileEntry.createWriter(function(writer) {
+          writer.onwriteend = function() {
+            statusEl.innerHTML = '<span class="ok">已保存到: ' + dirUrl + filename + '</span>';
+          };
+          writer.onerror = function(e) {
+            statusEl.innerHTML = '<span class="err">写入失败: ' + (e.message || JSON.stringify(e)) + '</span>';
+          };
+          writer.write(blob);
+        }, function(e){ statusEl.innerHTML = '<span class="err">创建写入器失败: ' + JSON.stringify(e) + '</span>'; });
+      }, function(e){ statusEl.innerHTML = '<span class="err">创建文件失败: ' + JSON.stringify(e) + '</span>'; });
+    }, function(e){ statusEl.innerHTML = '<span class="err">无法访问目录(' + dirUrl + '): ' + JSON.stringify(e) + '</span>'; });
+  }
+
+  const downloadDir = (window.cordova.file && cordova.file.externalRootDirectory)
+    ? cordova.file.externalRootDirectory + 'Download/'
+    : null;
+
+  if (window.cordova.plugins && window.cordova.plugins.permissions && downloadDir) {
+    const permissions = window.cordova.plugins.permissions;
+    const perm = permissions.WRITE_EXTERNAL_STORAGE;
+    permissions.checkPermission(perm, function(status) {
+      if (status.hasPermission) {
+        writeTo(downloadDir);
+      } else {
+        permissions.requestPermission(perm, function(status2) {
+          if (status2.hasPermission) {
+            writeTo(downloadDir);
+          } else if (cordova.file.externalDataDirectory) {
+            writeTo(cordova.file.externalDataDirectory);
+          } else {
+            statusEl.innerHTML = '<span class="err">未获得存储权限,无法保存</span>';
+          }
+        }, function(){
+          if (cordova.file.externalDataDirectory) writeTo(cordova.file.externalDataDirectory);
+          else statusEl.innerHTML = '<span class="err">权限请求失败</span>';
+        });
+      }
+    }, function(){
+      writeTo(downloadDir);
+    });
+  } else if (downloadDir) {
+    writeTo(downloadDir);
+  } else if (window.cordova.file && cordova.file.externalDataDirectory) {
+    writeTo(cordova.file.externalDataDirectory);
+  } else {
+    statusEl.innerHTML = '<span class="err">当前环境不支持文件系统访问</span>';
+  }
+}
+
+dlLink.addEventListener('click', function(e) {
+  if (dlLink.dataset.pending === '1') {
+    e.preventDefault();
+    if (window.__pendingBlob) {
+      saveFileCordova(window.__pendingBlob, window.__pendingName);
+    }
+  }
+});
+
+document.addEventListener('deviceready', function() {
+  // Cordova 环境就绪标记,无需额外操作
+}, false);
 </script>
 </body>
 </html>

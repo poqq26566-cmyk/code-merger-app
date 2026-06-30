@@ -29,6 +29,8 @@ jobs:
           cp www/index.html app/www/index.html
           cd app
           cordova platform add android
+          cordova plugin add cordova-plugin-file
+          cordova plugin add cordova-plugin-android-permissions
 
       - name: Build APK
         run: |

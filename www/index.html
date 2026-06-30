@@ -68,6 +68,7 @@
     <div class="sub">选一个 zip 压缩包,自动解压并把所有代码文件按路径合并成一份 txt。本版本的解压引擎完全内嵌在文件中,不引用任何外部库,可彻底关闭网络权限使用。</div>
     <span class="badge offline">完全离线</span>
     <span class="badge">ZIP → TXT</span>
+    <div id="diag" style="margin-top:8px;font-size:11px;color:#8a8474;"></div>
   </header>
 
   <div class="panel">
@@ -318,6 +319,35 @@ const resultEl = document.getElementById('result');
 const statEl = document.getElementById('stat');
 const dlLink = document.getElementById('dlLink');
 
+let isCordovaReady = false;
+// 检测是否处于 Cordova 环境(通过 UA 或文件协议预判,先给个初步值)
+let isCordovaApp = !!(window.cordova || document.URL.indexOf('http://') !== 0 && document.URL.indexOf('https://') !== 0 && document.URL.indexOf('file://') === 0);
+
+document.addEventListener('deviceready', function() {
+  isCordovaReady = true;
+  isCordovaApp = true;
+  statusEl.textContent = '';
+  updateDiag();
+}, false);
+
+// 兜底:如果 200ms 内 deviceready 没触发,但 window.cordova 存在,也视为已就绪
+setTimeout(function() {
+  if (!isCordovaReady && window.cordova) {
+    isCordovaReady = true;
+    isCordovaApp = true;
+  }
+  updateDiag();
+}, 300);
+
+function updateDiag() {
+  const diag = document.getElementById('diag');
+  if (!diag) return;
+  const hasCordova = !!window.cordova;
+  const hasFile = !!(window.cordova && cordova.file);
+  diag.textContent = '环境检测: cordova=' + hasCordova + ' fileAPI=' + hasFile + ' ready=' + isCordovaReady;
+}
+updateDiag();
+
 const DEFAULT_BINARY_EXT = ['jar','class','png','jpg','jpeg','gif','ico','webp','bmp','zip','gz','tar','7z','exe','dll','so','dylib','ttf','otf','woff','woff2','mp3','mp4','mov','avi','pdf'];
 
 let selectedFile = null;
@@ -436,7 +466,16 @@ runBtn.addEventListener('click', async () => {
 
     resultEl.classList.add('show');
 
-    if (window.cordova) {
+    if (isCordovaApp) {
+      // 若 deviceready 尚未触发,等待最多 2 秒
+      if (!isCordovaReady) {
+        statusEl.textContent = '正在等待App环境就绪...';
+        let waited = 0;
+        while (!isCordovaReady && waited < 2000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+        }
+      }
       window.__pendingBlob = blob;
       window.__pendingName = outFileName;
       dlLink.textContent = '保存到 Download 文件夹';
@@ -526,10 +565,6 @@ dlLink.addEventListener('click', function(e) {
     }
   }
 });
-
-document.addEventListener('deviceready', function() {
-  // Cordova 环境就绪标记,无需额外操作
-}, false);
 </script>
 </body>
 </html>

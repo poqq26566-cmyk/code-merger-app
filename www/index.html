@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>代码合并工具</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<title>代码合并工具(完全离线版)</title>
 <style>
   :root{
     --ink:#1c1b19;
@@ -25,179 +24,49 @@
     padding:24px 18px 60px;
   }
   .wrap{max-width:640px;margin:0 auto;}
-
-  header{
-    border-bottom:3px solid var(--ink);
-    padding-bottom:14px;
-    margin-bottom:22px;
-  }
-  .eyebrow{
-    font-size:11px;
-    letter-spacing:.18em;
-    text-transform:uppercase;
-    color:var(--accent-dim);
-    margin-bottom:6px;
-  }
-  h1{
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size:30px;
-    margin:0 0 6px;
-    letter-spacing:-.01em;
-  }
-  .sub{
-    font-size:13px;
-    color:#5b564c;
-    line-height:1.5;
-  }
-  .badge{
-    display:inline-block;
-    margin-top:10px;
-    font-size:11px;
-    border:1px solid var(--ink);
-    padding:3px 8px;
-    border-radius:2px;
-    letter-spacing:.04em;
-  }
-
-  .panel{
-    background:#fff;
-    border:1px solid var(--rule);
-    border-radius:3px;
-    padding:18px;
-    margin-bottom:18px;
-  }
-  .panel h2{
-    font-family: Georgia, serif;
-    font-size:15px;
-    margin:0 0 10px;
-    display:flex;
-    align-items:baseline;
-    gap:8px;
-  }
-  .panel h2 .num{
-    color:var(--accent);
-    font-size:13px;
-  }
-
-  .drop{
-    border:2px dashed var(--rule);
-    border-radius:3px;
-    padding:28px 16px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-  }
-  .drop.drag{
-    border-color:var(--accent);
-    background:#fbf2ec;
-  }
+  header{border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:22px;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-dim);margin-bottom:6px;}
+  h1{font-family: Georgia, 'Times New Roman', serif;font-size:30px;margin:0 0 6px;letter-spacing:-.01em;}
+  .sub{font-size:13px;color:#5b564c;line-height:1.5;}
+  .badge{display:inline-block;margin-top:10px;margin-right:6px;font-size:11px;border:1px solid var(--ink);padding:3px 8px;border-radius:2px;letter-spacing:.04em;}
+  .badge.offline{background:var(--ok);color:#fff;border-color:var(--ok);}
+  .panel{background:#fff;border:1px solid var(--rule);border-radius:3px;padding:18px;margin-bottom:18px;}
+  .panel h2{font-family: Georgia, serif;font-size:15px;margin:0 0 10px;display:flex;align-items:baseline;gap:8px;}
+  .panel h2 .num{color:var(--accent);font-size:13px;}
+  .drop{border:2px dashed var(--rule);border-radius:3px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .15s, background .15s;}
+  .drop.drag{border-color:var(--accent);background:#fbf2ec;}
   .drop input{display:none;}
-  .drop-label{
-    font-size:13px;
-    color:#5b564c;
-  }
+  .drop-label{font-size:13px;color:#5b564c;}
   .drop-label strong{color:var(--ink);}
-  .filename{
-    margin-top:10px;
-    font-size:12px;
-    color:var(--ok);
-    word-break:break-all;
-  }
-
-  .opt-row{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-size:13px;
-    padding:6px 0;
-  }
-  .opt-row input[type=checkbox]{
-    width:15px;height:15px;
-    accent-color:var(--accent);
-  }
+  .filename{margin-top:10px;font-size:12px;color:var(--ok);word-break:break-all;}
+  .opt-row{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;}
+  .opt-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);}
   .opt-row label{flex:1;}
-  .ext-input{
-    width:100%;
-    font-family:inherit;
-    font-size:12px;
-    padding:8px;
-    border:1px solid var(--rule);
-    border-radius:2px;
-    background:#fbfaf6;
-    color:var(--ink);
-    margin-top:4px;
-  }
+  .ext-input{width:100%;font-family:inherit;font-size:12px;padding:8px;border:1px solid var(--rule);border-radius:2px;background:#fbfaf6;color:var(--ink);margin-top:4px;}
   .hint{font-size:11px;color:#8a8474;margin-top:4px;}
-
-  button.run{
-    width:100%;
-    background:var(--ink);
-    color:var(--paper);
-    border:none;
-    padding:14px;
-    font-family:inherit;
-    font-size:14px;
-    letter-spacing:.04em;
-    border-radius:3px;
-    cursor:pointer;
-    margin-top:4px;
-  }
-  button.run:disabled{
-    background:#b9b3a4;
-    cursor:not-allowed;
-  }
+  button.run{width:100%;background:var(--ink);color:var(--paper);border:none;padding:14px;font-family:inherit;font-size:14px;letter-spacing:.04em;border-radius:3px;cursor:pointer;margin-top:4px;}
+  button.run:disabled{background:#b9b3a4;cursor:not-allowed;}
   button.run:active:not(:disabled){background:var(--accent-dim);}
-
-  .status{
-    font-size:12px;
-    color:#5b564c;
-    margin-top:12px;
-    line-height:1.6;
-    white-space:pre-wrap;
-  }
+  .status{font-size:12px;color:#5b564c;margin-top:12px;line-height:1.6;white-space:pre-wrap;}
   .status .err{color:#a3372c;}
   .status .ok{color:var(--ok);}
-
-  .result{
-    display:none;
-    background:var(--mono-bg);
-    color:#e9e4d8;
-    border-radius:3px;
-    padding:16px;
-    margin-top:14px;
-  }
+  .result{display:none;background:var(--mono-bg);color:#e9e4d8;border-radius:3px;padding:16px;margin-top:14px;}
   .result.show{display:block;}
   .result .stat{font-size:12px;margin-bottom:10px;color:#c9c2b1;}
   .result .stat b{color:#fff;}
-  a.dl{
-    display:block;
-    text-align:center;
-    background:var(--accent);
-    color:#fff;
-    text-decoration:none;
-    padding:12px;
-    border-radius:2px;
-    font-size:13px;
-    letter-spacing:.03em;
-  }
+  a.dl{display:block;text-align:center;background:var(--accent);color:#fff;text-decoration:none;padding:12px;border-radius:2px;font-size:13px;letter-spacing:.03em;}
   a.dl:active{background:var(--accent-dim);}
-
-  footer{
-    text-align:center;
-    font-size:11px;
-    color:#9b9586;
-    margin-top:30px;
-    line-height:1.6;
-  }
+  footer{text-align:center;font-size:11px;color:#9b9586;margin-top:30px;line-height:1.6;}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">本地处理 · 无需联网</div>
+    <div class="eyebrow">本地处理 · 内置解压引擎 · 零外部依赖</div>
     <h1>代码合并工具</h1>
-    <div class="sub">选一个 zip 压缩包,自动解压并把所有代码文件按路径合并成一份 txt。整个过程在手机本地完成,选完文件后断网也能用。</div>
+    <div class="sub">选一个 zip 压缩包,自动解压并把所有代码文件按路径合并成一份 txt。本版本的解压引擎完全内嵌在文件中,不引用任何外部库,可彻底关闭网络权限使用。</div>
+    <span class="badge offline">完全离线</span>
     <span class="badge">ZIP → TXT</span>
   </header>
 
@@ -238,11 +107,208 @@
 
   <footer>
     路径标记格式: ===== 文件路径 =====<br>
-    所有解压与合并均在浏览器内存中完成,不上传任何数据。
+    所有解压与合并均在浏览器内存中完成,不上传任何数据,不连接任何服务器。
   </footer>
 </div>
 
 <script>
+/* ============================================================
+   内置 DEFLATE (RFC1951) 解码器 —— 纯 JS 实现,无任何外部依赖
+   ============================================================ */
+function inflateRaw(input) {
+  let pos = 0, bitBuf = 0, bitCnt = 0;
+  const out = [];
+
+  function readBit() {
+    if (bitCnt === 0) { bitBuf = input[pos++]; bitCnt = 8; }
+    const b = bitBuf & 1; bitBuf >>= 1; bitCnt--; return b;
+  }
+  function readBits(n) {
+    let v = 0;
+    for (let i = 0; i < n; i++) v |= readBit() << i;
+    return v;
+  }
+
+  function buildTree(lengths) {
+    const maxBits = Math.max(...lengths);
+    const blCount = new Array(maxBits + 1).fill(0);
+    for (const l of lengths) if (l > 0) blCount[l]++;
+    const nextCode = new Array(maxBits + 1).fill(0);
+    let code = 0;
+    for (let bits = 1; bits <= maxBits; bits++) {
+      code = (code + blCount[bits - 1]) << 1;
+      nextCode[bits] = code;
+    }
+    const codes = new Array(lengths.length).fill(0);
+    for (let n = 0; n < lengths.length; n++) {
+      const len = lengths[n];
+      if (len > 0) { codes[n] = nextCode[len]; nextCode[len]++; }
+    }
+    // build decode map: key = (len<<16)|code -> symbol, but we'll decode bit by bit
+    const map = {};
+    for (let n = 0; n < lengths.length; n++) {
+      const len = lengths[n];
+      if (len > 0) map[len + ':' + codes[n]] = n;
+    }
+    return { map, maxBits };
+  }
+
+  function decodeSymbol(tree) {
+    let code = 0, len = 0;
+    while (len < tree.maxBits + 1) {
+      code = (code << 1) | readBit();
+      len++;
+      const key = len + ':' + code;
+      if (key in tree.map) return tree.map[key];
+    }
+    throw new Error('无法解码符号(数据可能损坏)');
+  }
+
+  const LEN_BASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+  const LEN_EXTRA = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+  const DIST_BASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+  const DIST_EXTRA = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+  const CL_ORDER = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
+
+  function inflateBlock(litTree, distTree) {
+    while (true) {
+      const sym = decodeSymbol(litTree);
+      if (sym < 256) {
+        out.push(sym);
+      } else if (sym === 256) {
+        break;
+      } else {
+        const li = sym - 257;
+        const len = LEN_BASE[li] + readBits(LEN_EXTRA[li]);
+        const dsym = decodeSymbol(distTree);
+        const dist = DIST_BASE[dsym] + readBits(DIST_EXTRA[dsym]);
+        let start = out.length - dist;
+        for (let i = 0; i < len; i++) out.push(out[start + i]);
+      }
+    }
+  }
+
+  function fixedTrees() {
+    const litLengths = new Array(288);
+    for (let i = 0; i <= 143; i++) litLengths[i] = 8;
+    for (let i = 144; i <= 255; i++) litLengths[i] = 9;
+    for (let i = 256; i <= 279; i++) litLengths[i] = 7;
+    for (let i = 280; i <= 287; i++) litLengths[i] = 8;
+    const distLengths = new Array(30).fill(5);
+    return { lit: buildTree(litLengths), dist: buildTree(distLengths) };
+  }
+
+  let final = 0;
+  do {
+    final = readBit();
+    const type = readBits(2);
+    if (type === 0) {
+      // stored
+      bitBuf = 0; bitCnt = 0;
+      const len = input[pos] | (input[pos+1] << 8); pos += 4;
+      for (let i = 0; i < len; i++) out.push(input[pos++]);
+    } else if (type === 1) {
+      const { lit, dist } = fixedTrees();
+      inflateBlock(lit, dist);
+    } else if (type === 2) {
+      const hlit = readBits(5) + 257;
+      const hdist = readBits(5) + 1;
+      const hclen = readBits(4) + 4;
+      const clLengths = new Array(19).fill(0);
+      for (let i = 0; i < hclen; i++) clLengths[CL_ORDER[i]] = readBits(3);
+      const clTree = buildTree(clLengths);
+      const lengths = [];
+      while (lengths.length < hlit + hdist) {
+        const sym = decodeSymbol(clTree);
+        if (sym < 16) {
+          lengths.push(sym);
+        } else if (sym === 16) {
+          const rep = readBits(2) + 3;
+          const prev = lengths[lengths.length - 1];
+          for (let i = 0; i < rep; i++) lengths.push(prev);
+        } else if (sym === 17) {
+          const rep = readBits(3) + 3;
+          for (let i = 0; i < rep; i++) lengths.push(0);
+        } else {
+          const rep = readBits(7) + 11;
+          for (let i = 0; i < rep; i++) lengths.push(0);
+        }
+      }
+      const litLengths = lengths.slice(0, hlit);
+      const distLengths = lengths.slice(hlit, hlit + hdist);
+      const litTree = buildTree(litLengths);
+      const distTree = buildTree(distLengths);
+      inflateBlock(litTree, distTree);
+    } else {
+      throw new Error('不支持的压缩块类型');
+    }
+  } while (!final);
+
+  return new Uint8Array(out);
+}
+
+/* ============================================================
+   内置 ZIP 文件格式解析器 —— 读取中央目录,提取文件列表
+   ============================================================ */
+function parseZip(buffer) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.length;
+
+  // 找 End of Central Directory (EOCD) signature: 0x06054b50
+  let eocdPos = -1;
+  for (let i = len - 22; i >= Math.max(0, len - 65557); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocdPos = i; break; }
+  }
+  if (eocdPos === -1) throw new Error('找不到ZIP结束标记,文件可能已损坏或不是有效的zip');
+
+  const cdCount = view.getUint16(eocdPos + 10, true);
+  const cdOffset = view.getUint32(eocdPos + 16, true);
+
+  const entries = [];
+  let p = cdOffset;
+  for (let i = 0; i < cdCount; i++) {
+    const sig = view.getUint32(p, true);
+    if (sig !== 0x02014b50) throw new Error('中央目录格式异常');
+    const compMethod = view.getUint16(p + 10, true);
+    const compSize = view.getUint32(p + 20, true);
+    const uncompSize = view.getUint32(p + 24, true);
+    const nameLen = view.getUint16(p + 28, true);
+    const extraLen = view.getUint16(p + 30, true);
+    const commentLen = view.getUint16(p + 32, true);
+    const localHeaderOffset = view.getUint32(p + 42, true);
+    const nameBytes = bytes.slice(p + 46, p + 46 + nameLen);
+    const name = new TextDecoder('utf-8').decode(nameBytes);
+    const isDir = name.endsWith('/');
+
+    entries.push({ name, compMethod, compSize, uncompSize, localHeaderOffset, isDir });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+
+  function readFileData(entry) {
+    const lp = entry.localHeaderOffset;
+    const lNameLen = view.getUint16(lp + 26, true);
+    const lExtraLen = view.getUint16(lp + 28, true);
+    const dataStart = lp + 30 + lNameLen + lExtraLen;
+    const compData = bytes.slice(dataStart, dataStart + entry.compSize);
+
+    let raw;
+    if (entry.compMethod === 0) {
+      raw = compData;
+    } else if (entry.compMethod === 8) {
+      raw = inflateRaw(compData);
+    } else {
+      throw new Error('不支持的压缩方式(method=' + entry.compMethod + ')');
+    }
+    return raw;
+  }
+
+  return { entries, readFileData };
+}
+
+/* ============================================================
+   页面交互逻辑
+   ============================================================ */
 const fileInput = document.getElementById('fileInput');
 const drop = document.getElementById('drop');
 const filenameEl = document.getElementById('filename');
@@ -262,11 +328,8 @@ drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
 drop.addEventListener('drop', e => {
   e.preventDefault();
   drop.classList.remove('drag');
-  if (e.dataTransfer.files.length) {
-    handleFile(e.dataTransfer.files[0]);
-  }
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
 });
-
 fileInput.addEventListener('change', () => {
   if (fileInput.files.length) handleFile(fileInput.files[0]);
 });
@@ -287,6 +350,18 @@ function handleFile(file) {
   resultEl.classList.remove('show');
 }
 
+function looksLikeText(bytes) {
+  // 简单判断:抽样检查是否含大量不可打印字节(粗略二进制检测)
+  const sampleLen = Math.min(bytes.length, 2000);
+  let suspicious = 0;
+  for (let i = 0; i < sampleLen; i++) {
+    const b = bytes[i];
+    if (b === 0) return false;
+    if (b < 7 || (b > 13 && b < 32)) suspicious++;
+  }
+  return suspicious / sampleLen < 0.05;
+}
+
 runBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
   runBtn.disabled = true;
@@ -305,38 +380,49 @@ runBtn.addEventListener('click', async () => {
     excludeExt = excludeExt.concat(extraExt);
 
     const arrayBuffer = await selectedFile.arrayBuffer();
-    statusEl.textContent = '正在解压...';
-    const zip = await JSZip.loadAsync(arrayBuffer);
+    statusEl.textContent = '正在解析ZIP结构...';
+    await new Promise(r => setTimeout(r, 10));
 
-    const entries = [];
-    zip.forEach((relPath, entry) => {
-      if (entry.dir) return;
-      if (excGit && (relPath.includes('/.git/') || relPath.startsWith('.git/'))) return;
-      const ext = relPath.includes('.') ? relPath.split('.').pop().toLowerCase() : '';
-      if (excludeExt.includes(ext)) return;
-      entries.push({ path: relPath, entry });
+    const zip = parseZip(arrayBuffer);
+
+    const filtered = zip.entries.filter(e => {
+      if (e.isDir) return false;
+      if (excGit && (e.name.includes('/.git/') || e.name.startsWith('.git/'))) return false;
+      const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
+      if (excludeExt.includes(ext)) return false;
+      return true;
     });
 
-    entries.sort((a, b) => a.path.localeCompare(b.path));
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-    statusEl.textContent = '正在合并 ' + entries.length + ' 个文件...';
+    statusEl.textContent = '正在合并 ' + filtered.length + ' 个文件...';
+    await new Promise(r => setTimeout(r, 10));
 
+    const decoder = new TextDecoder('utf-8', { fatal: false });
     let chunks = [];
     let included = 0;
     let skippedBinary = 0;
 
-    for (const item of entries) {
-      let content;
+    for (let i = 0; i < filtered.length; i++) {
+      const entry = filtered[i];
+      let raw;
       try {
-        content = await item.entry.async('string');
+        raw = zip.readFileData(entry);
       } catch (e) {
         skippedBinary++;
         continue;
       }
-      chunks.push('===== ./' + item.path + ' =====\n');
-      chunks.push(content);
+      if (!looksLikeText(raw)) { skippedBinary++; continue; }
+      const text = decoder.decode(raw);
+      chunks.push('===== ./' + entry.name + ' =====\n');
+      chunks.push(text);
       chunks.push('\n\n\n');
       included++;
+
+      if (i % 20 === 0) {
+        statusEl.textContent = '正在合并... (' + (i+1) + '/' + filtered.length + ')';
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
 
     const finalText = chunks.join('');
@@ -348,7 +434,7 @@ runBtn.addEventListener('click', async () => {
     dlLink.download = baseName + '_merged.txt';
 
     statEl.innerHTML = '已收录 <b>' + included + '</b> 个文件'
-      + (skippedBinary ? ' · 跳过 <b>' + skippedBinary + '</b> 个无法解析为文本的文件' : '')
+      + (skippedBinary ? ' · 跳过 <b>' + skippedBinary + '</b> 个二进制/无法解析的文件' : '')
       + '<br>合并后总大小: <b>' + (blob.size/1024).toFixed(1) + ' KB</b>';
 
     resultEl.classList.add('show');
